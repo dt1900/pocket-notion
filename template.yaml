@@ -1,0 +1,107 @@
+# Vibe-coded by Antigravity v2.0 on 2026-08-13. Driven by @dt1900.
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Pocket to Notion Webhook Sync Engine
+
+Parameters:
+  DomainName:
+    Type: String
+    Default: pocket.example.com
+    Description: Custom domain for the webhook endpoint (e.g. pocket.yourdomain.com)
+  HostedZoneId:
+    Type: String
+    Default: Z00000000000000000000
+    Description: Route 53 Hosted Zone ID for your domain
+  NotionApiKey:
+    Type: String
+    NoEcho: true
+    Description: Notion Internal Integration Secret Token (ntn_... or secret_...)
+  NotionDatabaseId:
+    Type: String
+    Description: Notion 32-character Database ID
+  HeyPocketWebhookSecret:
+    Type: String
+    NoEcho: true
+    Default: ''
+    Description: Optional HeyPocket HMAC Webhook Secret
+
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 256
+    Runtime: nodejs20.x
+    Tags:
+      Project: pocket-notion
+      Environment: production
+      ManagedBy: sam
+  HttpApi:
+    Tags:
+      Project: pocket-notion
+      Environment: production
+
+Resources:
+  # 1. ACM SSL Certificate with automated Route 53 DNS validation
+  ApiCertificate:
+    Type: AWS::CertificateManager::Certificate
+    Properties:
+      DomainName: !Ref DomainName
+      ValidationMethod: DNS
+      DomainValidationOptions:
+        - DomainName: !Ref DomainName
+          HostedZoneId: !Ref HostedZoneId
+
+  # 2. HTTP API (API Gateway v2) with Custom Domain
+  HttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      Domain:
+        DomainName: !Ref DomainName
+        CertificateArn: !Ref ApiCertificate
+        EndpointConfiguration: REGIONAL
+        Route53:
+          HostedZoneId: !Ref HostedZoneId
+
+  # 3. Pocket to Notion Sync Lambda Function
+  PocketNotionSyncFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: dist/lambda/
+      Handler: index.handler
+      Environment:
+        Variables:
+          NOTION_API_KEY: !Ref NotionApiKey
+          NOTION_DATABASE_ID: !Ref NotionDatabaseId
+          HEYPOCKET_WEBHOOK_SECRET: !Ref HeyPocketWebhookSecret
+      Events:
+        WebhookPost:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /
+            Method: POST
+        WebhookPostSubpath:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /webhook
+            Method: POST
+        HealthGet:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /health
+            Method: GET
+        RootGet:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /
+            Method: GET
+
+Outputs:
+  CustomDomainWebhookUrl:
+    Description: "Live Custom Domain Webhook URL to configure in HeyPocket Mobile App"
+    Value: !Sub "https://${DomainName}/webhook"
+  HttpApiUrl:
+    Description: "Raw API Gateway Endpoint URL"
+    Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"

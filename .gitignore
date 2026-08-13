@@ -1,0 +1,9 @@
+# Vibe-coded by Antigravity v2.0 on 2026-08-13. Driven by @dt1900.
+node_modules/
+dist/
+.env
+.env.local
+.wrangler/
+.aws-sam/
+*.log
+.DS_Store

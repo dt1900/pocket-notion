@@ -1,0 +1,41 @@
+{
+  "name": "pocket-notion",
+  "version": "1.0.0",
+  "description": "Automated, zero-cost bridge to sync HeyPocket voice notes, transcripts, and action items into Notion",
+  "main": "dist/adapters/standalone.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "build:lambda": "esbuild src/adapters/lambda.ts --bundle --platform=node --target=node20 --format=cjs --outfile=dist/lambda/index.js",
+    "dev": "tsx watch src/adapters/standalone.ts",
+    "start": "node dist/adapters/standalone.js",
+    "setup": "tsx scripts/setup.ts",
+    "test:webhook": "tsx scripts/test-webhook.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "deploy:cf": "wrangler deploy",
+    "deploy:aws": "npm run build:lambda && sam build && sam deploy --guided"
+  },
+  "keywords": [
+    "heypocket",
+    "notion",
+    "voice-notes",
+    "sync",
+    "cloudflare-workers",
+    "aws-lambda"
+  ],
+  "author": "Antigravity (driven by @dt1900)",
+  "license": "MIT",
+  "dependencies": {
+    "@notionhq/client": "^2.2.15",
+    "dotenv": "^16.4.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.1",
+    "esbuild": "^0.28.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.5",
+    "wrangler": "^3.107.3"
+  }
+}
