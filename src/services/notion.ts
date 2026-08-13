@@ -446,7 +446,7 @@ export class NotionSyncService {
       }
     }
 
-    // 4. Mind Map / Key Points
+    // 4. Mind Map / Key Points (Rendered as native visual Mermaid flowchart in Notion)
     if (note.mindMapPoints.length > 0) {
       blocks.push({
         object: 'block',
@@ -456,15 +456,15 @@ export class NotionSyncService {
         }
       });
 
-      for (const point of note.mindMapPoints) {
-        blocks.push({
-          object: 'block',
-          type: 'bulleted_list_item',
-          bulleted_list_item: {
-            rich_text: [{ type: 'text', text: { content: truncateString(point, 1900) } }]
-          }
-        });
-      }
+      const mermaidDiagram = this.buildMermaidMindMap(note.title, note.mindMapPoints);
+      blocks.push({
+        object: 'block',
+        type: 'code',
+        code: {
+          language: 'mermaid',
+          rich_text: [{ type: 'text', text: { content: mermaidDiagram } }]
+        }
+      });
     }
 
     // 5. Full Transcript (with speaker support and chunking)
@@ -559,6 +559,39 @@ export class NotionSyncService {
 
     // Notion API allows up to 100 blocks per request
     return blocks.slice(0, 100);
+  }
+
+  /**
+   * Generates standard, cross-platform Mermaid.js flowchart code for Notion.
+   */
+  private buildMermaidMindMap(title: string, points: string[]): string {
+    const sanitize = (text: string) =>
+      text
+        .replace(/["\n\r`']/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+    const rootLabel = sanitize(title || 'Pocket Voice Note');
+    let mermaid = 'graph TD\n';
+    mermaid += `  ROOT["🎙️ ${truncateString(rootLabel, 80)}"]\n`;
+
+    points.slice(0, 15).forEach((pt, index) => {
+      const nodeId = `NODE_${index + 1}`;
+      if (pt.includes(':')) {
+        const parts = pt.split(':');
+        const topic = sanitize(parts[0]);
+        const detail = sanitize(parts.slice(1).join(':'));
+        mermaid += `  ROOT -- "Topic" --> ${nodeId}["${truncateString(topic, 60)}"]\n`;
+        if (detail) {
+          const detailId = `DETAIL_${index + 1}`;
+          mermaid += `  ${nodeId} --> ${detailId}["${truncateString(detail, 80)}"]\n`;
+        }
+      } else {
+        mermaid += `  ROOT --> ${nodeId}["${truncateString(sanitize(pt), 80)}"]\n`;
+      }
+    });
+
+    return mermaid;
   }
 }
 
