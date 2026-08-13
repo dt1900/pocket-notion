@@ -446,7 +446,7 @@ export class NotionSyncService {
       }
     }
 
-    // 4. Mind Map / Key Points (Rendered as native visual Mermaid flowchart in Notion)
+    // 4. Mind Map / Key Points (Rendered as visual diagram image in Notion)
     if (note.mindMapPoints.length > 0) {
       blocks.push({
         object: 'block',
@@ -457,12 +457,37 @@ export class NotionSyncService {
       });
 
       const mermaidDiagram = this.buildMermaidMindMap(note.title, note.mindMapPoints);
+      const encodedDiagram = Buffer.from(mermaidDiagram).toString('base64');
+      const diagramImageUrl = `https://mermaid.ink/img/${encodedDiagram}`;
+
+      // 1. Direct Visual Diagram Graphic (Image Block)
       blocks.push({
         object: 'block',
-        type: 'code',
-        code: {
-          language: 'mermaid',
-          rich_text: [{ type: 'text', text: { content: mermaidDiagram } }]
+        type: 'image',
+        image: {
+          type: 'external',
+          external: {
+            url: diagramImageUrl
+          }
+        }
+      });
+
+      // 2. Collapsible toggle containing Mermaid code for easy editing/copying
+      blocks.push({
+        object: 'block',
+        type: 'toggle',
+        toggle: {
+          rich_text: [{ type: 'text', text: { content: '🔍 View Diagram Source (Mermaid)' } }],
+          children: [
+            {
+              object: 'block',
+              type: 'code',
+              code: {
+                language: 'mermaid',
+                rich_text: [{ type: 'text', text: { content: mermaidDiagram } }]
+              }
+            }
+          ]
         }
       });
     }
